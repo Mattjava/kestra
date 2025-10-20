@@ -159,26 +159,44 @@ public class JsonSchemaGenerator {
         objectNode.get("$defs").forEach(jsonNode -> {
             System.out.println("Main node: " + jsonNode + "\n\n");
             if(jsonNode.get("properties") instanceof ObjectNode properties) {
-                filterNullValues(properties);
+                if (jsonNode.get("required") instanceof ArrayNode required)
+                    filterNullValues(properties, required);
+                else {
+                    filterNullValues(properties, null);
+                }
             }
         });
     }
 
-    private void filterNullValues(JsonNode properties) {
+    private void filterNullValues(JsonNode properties, ArrayNode required) {
         properties.forEach(field -> {
             if(field.get("anyOf") instanceof ArrayNode fieldProperties) {
                 for(int i = 0; i < fieldProperties.size(); i++) {
                     JsonNode fieldProperty = fieldProperties.get(i);
                     System.out.println("Filtering " + fieldProperty);
+                    // System.out.println(fieldProperty.get("type").toString());
+                    // System.out.println(fieldProperty.asText());
                     if(fieldProperty.get("type").equals("object"))
-                        filterNullValues(fieldProperty.get("properties"));
-                    else if(fieldProperty.get("type").equals("null")) {
+                        filterNullValues(fieldProperty.get("properties"), required);
+                        // maybe instead of .asText try .toString().equals('"null"')
+                    else if(fieldProperty.get("type").asText().equals("null")) {
+                        // System.out.println("Removing property");
                         fieldProperties.remove(i);
                         i--;
+                        removeFromRequired(field.asText(), required);
                     }
                 }
             }
         });
+    }
+
+    private void removeFromRequired(String fieldName, ArrayNode required) {
+        for (int i = 0; i < required.size(); i++) {
+            if (required.get(i).asText().equals(fieldName)) {
+                required.remove(i);
+                i--;
+            }
+        }
     }
 
     
